@@ -1,0 +1,66 @@
+name: Python 3.9 Windows Setup
+
+on:
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest  # This will use a Windows runner for your workflow
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Step 2: Set up Python 3.9
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    # Step 3: Install necessary dependencies
+    - name: Install Python dependencies for script
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas openpyxl
+
+    # Step 4: Run the Python script to generate user-specific requirements
+    - name: Generate user-specific requirements files
+      run: |
+        python generate_requirements.py
+
+    # Step 5: Create virtual environment
+    - name: Create virtual environment
+      run: |
+        if (Test-Path venv) {
+          Remove-Item -Recurse -Force venv
+        }
+        python -m venv venv
+        .\venv\Scripts\activate
+
+    # Step 6: Create a 'wheelhouse' folder to store downloaded packages
+    - name: Create wheelhouse directory
+      run: |
+        mkdir wheelhouse
+
+    # Step 7: Loop through all user directories and download their packages
+    - name: Download Python packages for all users
+      run: |
+        .\venv\Scripts\activate
+        # Loop through each user directory and download the packages
+        foreach ($userDir in Get-ChildItem -Directory) {
+          if (Test-Path "$userDir/requirements.txt") {
+            echo "Downloading packages for $userDir..."
+            pip download -r "$userDir/requirements.txt" --dest=wheelhouse
+          }
+        }
+
+    # Step 8: Upload downloaded packages as an artifact
+    - name: Upload python packages for all users
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-packages
+        path: wheelhouse/
