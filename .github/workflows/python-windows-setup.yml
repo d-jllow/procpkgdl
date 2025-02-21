@@ -36,17 +36,18 @@ jobs:
         .\venv\Scripts\activate
         python -m pip install --upgrade pip  # Force reinstall pip to the latest version
 
-    # Step 5: Install pipdeptree to identify dependencies
-    - name: Install pipdeptree
+    # Step 5: Install necessary packages (including pandas)
+    - name: Install required packages
       run: |
         .\venv\Scripts\activate
-        pip install pipdeptree
+        pip install pandas  # Install pandas and other dependencies for your script
+        pip install pipdeptree  # Install pipdeptree for dependency management
 
     # Step 6: Split requirements based on users
     - name: Split requirements based on users
       run: |
         .\venv\Scripts\activate
-        python ./genpylocalreq.py
+        python ./genpylocalreq.py  # Correct the path to the script (relative to the root folder)
 
     # Step 7: Dynamic package download based on user directories
     - name: Download packages dynamically based on user directories
