@@ -46,7 +46,7 @@ jobs:
     - name: Split requirements based on users
       run: |
         .\venv\Scripts\activate
-        python ./genlocalpyreq.py  # Correct the path to the script (relative to the root folder)
+        python ./genpylocalreq.py
 
     # Step 7: Dynamic package download based on user directories
     - name: Download packages dynamically based on user directories
