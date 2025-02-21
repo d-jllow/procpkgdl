@@ -36,11 +36,12 @@ jobs:
         .\venv\Scripts\activate
         python -m pip install --upgrade pip  # Force reinstall pip to the latest version
 
-    # Step 5: Install necessary packages (including pandas)
+    # Step 5: Install necessary packages (including pandas and openpyxl)
     - name: Install required packages
       run: |
         .\venv\Scripts\activate
-        pip install pandas  # Install pandas and other dependencies for your script
+        pip install pandas  # Install pandas
+        pip install openpyxl  # Install openpyxl for reading Excel files
         pip install pipdeptree  # Install pipdeptree for dependency management
 
     # Step 6: Split requirements based on users
