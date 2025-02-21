@@ -30,7 +30,7 @@ jobs:
     # Step 4: Run the Python script to generate user-specific requirements
     - name: Generate user-specific requirements files
       run: |
-        python generate_requirements.py
+        python genpylocalreq.py
 
     # Step 5: Create virtual environment
     - name: Create virtual environment
@@ -52,9 +52,9 @@ jobs:
         .\venv\Scripts\activate
         # Loop through each user directory and download the packages
         foreach ($userDir in Get-ChildItem -Directory) {
-          if (Test-Path "$userDir/requirements.txt") {
+          if (Test-Path "$userDir/requirements_py.txt") {
             echo "Downloading packages for $userDir..."
-            pip download -r "$userDir/requirements.txt" --dest=wheelhouse
+            pip download -r "$userDir/requirements_py.txt" --dest=wheelhouse
           }
         }
 
