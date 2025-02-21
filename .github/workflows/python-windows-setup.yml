@@ -1,17 +1,17 @@
-name: Python 3.9 Windows Setup
+name: Python Windows Setup
 
 on:
-  workflow_dispatch:  # Allows manual triggering from GitHub UI
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   build:
-    runs-on: windows-latest  # This will use a Windows runner for your workflow
+    runs-on: windows-latest
 
     steps:
-    # Step 1: Checkout the repository
+    # Step 1: Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v2
 
@@ -21,18 +21,7 @@ jobs:
       with:
         python-version: '3.9'
 
-    # Step 3: Install necessary dependencies
-    - name: Install Python dependencies for script
-      run: |
-        python -m pip install --upgrade pip
-        pip install pandas openpyxl
-
-    # Step 4: Run the Python script to generate user-specific requirements
-    - name: Generate user-specific requirements files
-      run: |
-        python genpylocalreq.py
-
-    # Step 5: Create virtual environment
+    # Step 3: Create virtual environment
     - name: Create virtual environment
       run: |
         if (Test-Path venv) {
@@ -41,25 +30,45 @@ jobs:
         python -m venv venv
         .\venv\Scripts\activate
 
-    # Step 6: Create a 'wheelhouse' folder to store downloaded packages
-    - name: Create wheelhouse directory
-      run: |
-        mkdir wheelhouse
-
-    # Step 7: Loop through all user directories and download their packages
-    - name: Download Python packages for all users
+    # Step 4: Install pipdeptree to identify dependencies
+    - name: Install pipdeptree
       run: |
         .\venv\Scripts\activate
-        # Loop through each user directory and download the packages
+        pip install pipdeptree
+
+    # Step 5: Split requirements based on users
+    - name: Split requirements based on users
+      run: |
+        .\venv\Scripts\activate
+        python genlocalpyreq.py
+
+    # Step 6: Dynamic package download based on user directories
+    - name: Download packages dynamically based on user directories
+      run: |
+        .\venv\Scripts\activate
+        mkdir wheelhouse  # Create a common directory for all downloaded packages
+
+        # Loop through each user directory and download the required packages
         foreach ($userDir in Get-ChildItem -Directory) {
-          if (Test-Path "$userDir/requirements_py.txt") {
+          $requirementsFile = "$userDir/requirements_py.txt"
+          if (Test-Path $requirementsFile) {
+            echo "Processing $userDir's packages..."
+            
+            # Step 6a: Use pipdeptree to identify the full dependency tree for the packages
+            echo "Generating dependency tree for $userDir..."
+            pip install -r $requirementsFile  # Install the packages temporarily to generate the dependency tree
+            pipdeptree --freeze > "$userDir/dependency_tree.txt"  # Save the dependency tree
+
+            # Step 6b: Download packages and their dependencies using pip
             echo "Downloading packages for $userDir..."
-            pip download -r "$userDir/requirements_py.txt" --dest=wheelhouse
+            pip download -r $requirementsFile --dest=wheelhouse
+            # Download the dependencies
+            pip download -r "$userDir/dependency_tree.txt" --dest=wheelhouse
           }
         }
 
-    # Step 8: Upload downloaded packages as an artifact
-    - name: Upload python packages for all users
+    # Step 7: Upload the downloaded packages as artifacts
+    - name: Upload wheelhouse
       uses: actions/upload-artifact@v4
       with:
         name: python-packages
