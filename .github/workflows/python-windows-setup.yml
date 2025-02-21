@@ -30,19 +30,25 @@ jobs:
         python -m venv venv
         .\venv\Scripts\activate
 
-    # Step 4: Install pipdeptree to identify dependencies
+    # Step 4: Force reinstall pip to ensure it's the latest version
+    - name: Force reinstall pip
+      run: |
+        .\venv\Scripts\activate
+        python -m pip install --upgrade pip  # Force reinstall pip to the latest version
+
+    # Step 5: Install pipdeptree to identify dependencies
     - name: Install pipdeptree
       run: |
         .\venv\Scripts\activate
         pip install pipdeptree
 
-    # Step 5: Split requirements based on users
+    # Step 6: Split requirements based on users
     - name: Split requirements based on users
       run: |
         .\venv\Scripts\activate
         python genlocalpyreq.py
 
-    # Step 6: Dynamic package download based on user directories
+    # Step 7: Dynamic package download based on user directories
     - name: Download packages dynamically based on user directories
       run: |
         .\venv\Scripts\activate
@@ -54,12 +60,12 @@ jobs:
           if (Test-Path $requirementsFile) {
             echo "Processing $userDir's packages..."
             
-            # Step 6a: Use pipdeptree to identify the full dependency tree for the packages
+            # Step 7a: Use pipdeptree to identify the full dependency tree for the packages
             echo "Generating dependency tree for $userDir..."
             pip install -r $requirementsFile  # Install the packages temporarily to generate the dependency tree
             pipdeptree --freeze > "$userDir/dependency_tree.txt"  # Save the dependency tree
 
-            # Step 6b: Download packages and their dependencies using pip
+            # Step 7b: Download packages and their dependencies using pip
             echo "Downloading packages for $userDir..."
             pip download -r $requirementsFile --dest=wheelhouse
             # Download the dependencies
@@ -67,7 +73,7 @@ jobs:
           }
         }
 
-    # Step 7: Upload the downloaded packages as artifacts
+    # Step 8: Upload the downloaded packages as artifacts
     - name: Upload wheelhouse
       uses: actions/upload-artifact@v4
       with:
