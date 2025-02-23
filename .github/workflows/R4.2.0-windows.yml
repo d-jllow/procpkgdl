@@ -1,0 +1,66 @@
+name: R Windows Setup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    # Step 1: Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Step 2: Set up R 4.2.0
+    - name: Set up R 4.2.0
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: '4.2.0'
+
+    # Step 3: Install required R packages
+    - name: Install required R packages
+      run: |
+        Rscript -e "install.packages(c('tidyverse', 'data.table', 'readxl', 'remotes', 'openxlsx'), repos='https://cloud.r-project.org/')"
+
+    # Step 4: Extract package list from Excel file
+    - name: Extract package list from Rlocal_processed.xlsx
+      run: |
+        Rscript -e "library(openxlsx); pkgs <- read.xlsx('Rlocal_processed.xlsx', colNames = FALSE)[[1]]; write(pkgs, 'requirements_r.txt')"
+
+    # Step 5: Split requirements based on users
+    - name: Split requirements based on users
+      run: |
+        Rscript -e "if (file.exists('genrlocalreq.R')) source('genrlocalreq.R')"
+
+    # Step 6: Dynamic package download based on user directories
+    - name: Download packages dynamically based on user directories
+      run: |
+        mkdir wheelhouse
+        $userDirs = Get-ChildItem -Directory
+        foreach ($userDir in $userDirs) {
+          $requirementsFile = "$userDir/requirements_r.txt"
+          if (Test-Path $requirementsFile) {
+            Write-Host "Processing $userDir's packages..."
+            
+            # Step 6a: Install dependencies temporarily to generate dependency tree
+            Write-Host "Generating dependency tree for $userDir..."
+            Rscript -e "install.packages(scan('$requirementsFile', what='character'), repos='https://cloud.r-project.org/')"
+            Rscript -e "installed.packages()[,c('Package', 'Depends', 'Imports', 'Suggests')] -> deps; write.csv(deps, file='$userDir/dependency_tree.csv', row.names=FALSE)"
+            
+            # Step 6b: Download packages and their dependencies
+            Write-Host "Downloading packages for $userDir..."
+            Rscript -e "pkgs <- scan('$requirementsFile', what='character'); download.packages(pkgs, destdir='wheelhouse', repos='https://cloud.r-project.org/')"
+            Rscript -e "deps <- read.csv('$userDir/dependency_tree.csv', stringsAsFactors=FALSE)$Package; download.packages(deps, destdir='wheelhouse', repos='https://cloud.r-project.org/')"
+          }
+        }
+
+    # Step 7: Upload downloaded packages as artifacts
+    - name: Upload wheelhouse
+      uses: actions/upload-artifact@v4
+      with:
+        name: r-packages
+        path: wheelhouse/
