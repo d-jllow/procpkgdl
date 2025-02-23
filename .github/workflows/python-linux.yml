@@ -45,7 +45,7 @@ jobs:
     - name: Split requirements based on users
       run: |
         source venv/bin/activate
-        python ./genpylocalreq.py
+        python ./genpylinuxreq.py
 
     # Step 7: Dynamic package download based on user directories
     - name: Download packages dynamically based on user directories
@@ -56,7 +56,7 @@ jobs:
         # Loop through each user directory and download the required packages
         for userDir in */ ; do
           if [ -d "$userDir" ]; then
-            requirementsFile="$userDir/requirements_py.txt"
+            requirementsFile="$userDir/requirements_pylinux.txt"
             if [ -f "$requirementsFile" ]; then
               echo "Processing $userDir's packages..."
               
