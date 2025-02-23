@@ -1,0 +1,82 @@
+name: Python Linux Setup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Step 2: Set up Python 3.9
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    # Step 3: Create virtual environment
+    - name: Create virtual environment
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+
+    # Step 4: Force reinstall pip to ensure it's the latest version
+    - name: Force reinstall pip
+      run: |
+        source venv/bin/activate
+        python -m pip install --upgrade pip
+
+    # Step 5: Install necessary packages (including pandas and openpyxl)
+    - name: Install required packages
+      run: |
+        source venv/bin/activate
+        pip install pandas
+        pip install openpyxl
+        pip install pipdeptree
+
+    # Step 6: Split requirements based on users
+    - name: Split requirements based on users
+      run: |
+        source venv/bin/activate
+        python ./genpylocalreq.py
+
+    # Step 7: Dynamic package download based on user directories
+    - name: Download packages dynamically based on user directories
+      run: |
+        source venv/bin/activate
+        mkdir -p wheelhouse
+
+        # Loop through each user directory and download the required packages
+        for userDir in */ ; do
+          if [ -d "$userDir" ]; then
+            requirementsFile="$userDir/requirements_py.txt"
+            if [ -f "$requirementsFile" ]; then
+              echo "Processing $userDir's packages..."
+              
+              # Step 7a: Use pipdeptree to identify the full dependency tree for the packages
+              echo "Generating dependency tree for $userDir..."
+              pip install -r "$requirementsFile"
+              pipdeptree --freeze > "$userDir/dependency_tree.txt"
+
+              # Step 7b: Download packages and their dependencies using pip
+              echo "Downloading packages for $userDir..."
+              pip download -r "$requirementsFile" --dest=wheelhouse
+              # Download the dependencies
+              pip download -r "$userDir/dependency_tree.txt" --dest=wheelhouse
+            fi
+          fi
+        done
+
+    # Step 8: Upload the downloaded packages as artifacts
+    - name: Upload wheelhouse
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-packages
+        path: wheelhouse/
