@@ -43,21 +43,24 @@ jobs:
         $userDirs = Get-ChildItem -Directory
         foreach ($userDir in $userDirs) {
           $requirementsFile = "$userDir/requirements_r.txt"
+          $dependencyTreeFile = "$userDir/dependency_tree.csv"  # Correct path
+    
           if (Test-Path $requirementsFile) {
             Write-Host "Processing $userDir's packages..."
             
             # Fix: Use forward slashes in R paths
-            $normalizedPath = $requirementsFile -replace '\\', '/'
-            
+            $normalizedReqPath = $requirementsFile -replace '\\', '/'
+            $normalizedDepPath = $dependencyTreeFile -replace '\\', '/'
+    
             # Step 6a: Install dependencies temporarily to generate dependency tree
             Write-Host "Generating dependency tree for $userDir..."
-            Rscript -e "install.packages(scan('$normalizedPath', what='character'), repos='https://cloud.r-project.org/')"
-            Rscript -e "installed.packages()[,c('Package', 'Depends', 'Imports', 'Suggests')] -> deps; write.csv(deps, file='$normalizedPath/dependency_tree.csv', row.names=FALSE)"
-            
+            Rscript -e "install.packages(scan('$normalizedReqPath', what='character'), repos='https://cloud.r-project.org/')"
+            Rscript -e "installed.packages()[,c('Package', 'Depends', 'Imports', 'Suggests')] -> deps; write.csv(deps, file='$normalizedDepPath', row.names=FALSE)"
+    
             # Step 6b: Download packages and their dependencies
             Write-Host "Downloading packages for $userDir..."
-            Rscript -e "pkgs <- scan('$normalizedPath', what='character'); download.packages(pkgs, destdir='wheelhouse', repos='https://cloud.r-project.org/')"
-            Rscript -e "deps <- read.csv('$normalizedPath/dependency_tree.csv', stringsAsFactors=FALSE)$Package; download.packages(deps, destdir='wheelhouse', repos='https://cloud.r-project.org/')"
+            Rscript -e "pkgs <- scan('$normalizedReqPath', what='character'); download.packages(pkgs, destdir='wheelhouse', repos='https://cloud.r-project.org/')"
+            Rscript -e "deps <- read.csv('$normalizedDepPath', stringsAsFactors=FALSE)$Package; download.packages(deps, destdir='wheelhouse', repos='https://cloud.r-project.org/')"
           }
         }
 
