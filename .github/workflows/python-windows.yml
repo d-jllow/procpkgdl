@@ -34,27 +34,27 @@ jobs:
     - name: Force reinstall pip
       run: |
         .\venv\Scripts\activate
-        python -m pip install --upgrade pip  # Force reinstall pip to the latest version
+        python -m pip install --upgrade pip
 
     # Step 5: Install necessary packages (including pandas and openpyxl)
     - name: Install required packages
       run: |
         .\venv\Scripts\activate
-        pip install pandas  # Install pandas
-        pip install openpyxl  # Install openpyxl for reading Excel files
-        pip install pipdeptree  # Install pipdeptree for dependency management
+        pip install pandas
+        pip install openpyxl
+        pip install pipdeptree
 
     # Step 6: Split requirements based on users
     - name: Split requirements based on users
       run: |
         .\venv\Scripts\activate
-        python ./genpylocalreq.py  # Correct the path to the script (relative to the root folder)
+        python ./genpylocalreq.py
 
     # Step 7: Dynamic package download based on user directories
     - name: Download packages dynamically based on user directories
       run: |
         .\venv\Scripts\activate
-        mkdir wheelhouse  # Create a common directory for all downloaded packages
+        mkdir wheelhouse
 
         # Loop through each user directory and download the required packages
         foreach ($userDir in Get-ChildItem -Directory) {
@@ -64,8 +64,8 @@ jobs:
             
             # Step 7a: Use pipdeptree to identify the full dependency tree for the packages
             echo "Generating dependency tree for $userDir..."
-            pip install -r $requirementsFile  # Install the packages temporarily to generate the dependency tree
-            pipdeptree --freeze > "$userDir/dependency_tree.txt"  # Save the dependency tree
+            pip install -r $requirementsFile
+            pipdeptree --freeze > "$userDir/dependency_tree.txt"
 
             # Step 7b: Download packages and their dependencies using pip
             echo "Downloading packages for $userDir..."
