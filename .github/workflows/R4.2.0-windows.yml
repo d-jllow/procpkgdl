@@ -65,7 +65,7 @@ jobs:
         mkdir r_packages
         
         foreach ($userDir in Get-ChildItem -Directory) {
-          $requirementsFile = "$($userDir.FullName)/requirements_rlocal.txt"
+          $requirementsFile = "$($userDir.FullName)/requirements_rlocal.txt" -replace '\\', '/'
           if (Test-Path $requirementsFile) {
             echo "Processing $($userDir.FullName)'s R packages..."
             Rscript -e "packages <- scan('$requirementsFile', what='', sep='\\n'); install.packages(packages, repos='https://cran.rstudio.com/', lib='r_packages')"
