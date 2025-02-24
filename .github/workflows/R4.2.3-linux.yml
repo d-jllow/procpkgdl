@@ -1,0 +1,64 @@
+name: R Linux Setup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Step 2: Set up Python 3.9 for requirement splitting
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    # Step 3: Install necessary Python packages
+    - name: Install required Python packages
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas openpyxl
+
+    # Step 4: Split R requirements based on users
+    - name: Split R requirements based on users
+      run: |
+        python ./genrlinuxreq.py
+
+    # Step 5: Set up R 4.2.3
+    - name: Set up R 4.2.3
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: '4.2.3'
+
+    # Step 6: Install necessary R packages
+    - name: Install required R packages
+      run: |
+        Rscript -e "install.packages(c('remotes'), repos='https://cran.rstudio.com/')"
+
+    # Step 7: Download R packages dynamically with dependencies
+    - name: Download R packages dynamically
+      run: |
+        mkdir -p r_packages
+        
+        for userDir in $(find . -type d -mindepth 1 -maxdepth 1); do
+          requirementsFile="$userDir/requirements_rlinux.txt"
+          if [ -f "$requirementsFile" ]; then
+            echo "Processing $userDir's R packages..."
+            Rscript -e "packages <- scan('$requirementsFile', what='', sep=''); deps <- tools::package_dependencies(packages, available.packages(), which=c('Depends', 'Imports', 'LinkingTo'), recursive=TRUE); all_packages <- unique(c(packages, unlist(deps))); download.packages(all_packages, destdir='r_packages', type='source')"
+          fi
+        done
+
+    # Step 8: Upload R packages artifact
+    - name: Upload R packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: r-packages
+        path: r_packages/
