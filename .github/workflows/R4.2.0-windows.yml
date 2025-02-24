@@ -46,7 +46,7 @@ jobs:
     - name: Split R requirements based on users
       run: |
         .\venv\Scripts\activate
-        python ./genrlocal.py
+        python ./genrlocalreq.py
 
     # Step 7: Set up R 4.2.0
     - name: Set up R 4.2.0
