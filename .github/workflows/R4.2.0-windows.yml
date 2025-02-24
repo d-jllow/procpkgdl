@@ -15,76 +15,66 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    # Step 2: Set up R 4.2.0
+    # Step 2: Set up Python 3.9 for requirement splitting
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    # Step 3: Create virtual environment
+    - name: Create virtual environment
+      run: |
+        if (Test-Path venv) {
+          Remove-Item -Recurse -Force venv
+        }
+        python -m venv venv
+        .\venv\Scripts\activate
+
+    # Step 4: Force reinstall pip
+    - name: Force reinstall pip
+      run: |
+        .\venv\Scripts\activate
+        python -m pip install --upgrade pip
+
+    # Step 5: Install necessary Python packages
+    - name: Install required Python packages
+      run: |
+        .\venv\Scripts\activate
+        pip install pandas openpyxl
+
+    # Step 6: Split R requirements based on users
+    - name: Split R requirements based on users
+      run: |
+        .\venv\Scripts\activate
+        python ./genrlocal.py
+
+    # Step 7: Set up R 4.2.0
     - name: Set up R 4.2.0
       uses: r-lib/actions/setup-r@v2
       with:
         r-version: '4.2.0'
 
-    # Step 3: Install required R packages
+    # Step 8: Install necessary R packages
     - name: Install required R packages
       run: |
-        Rscript -e "install.packages(c('tidyverse', 'data.table', 'readxl', 'remotes', 'openxlsx'), repos='https://cloud.r-project.org/')"
+        Rscript -e "install.packages(c('remotes'), repos='https://cran.rstudio.com/')"
 
-    # Step 4: Extract package list from Excel file
-    - name: Extract package list from Rlocal_processed.xlsx
+    # Step 9: Download R packages dynamically
+    - name: Download R packages dynamically
       run: |
-        Rscript -e "library(openxlsx); pkgs <- read.xlsx('Rlocal_processed.xlsx', colNames = FALSE)[[1]]; write(pkgs, 'requirements_r.txt')"
-
-    # Step 5: Split requirements based on users
-    - name: Split requirements based on users
-      run: |
-        Rscript -e "if (file.exists('genrlocalreq.R')) source('genrlocalreq.R')"
-
-    # Step 6: Dynamic package download based on user directories
-    - name: Download packages dynamically based on user directories
-      run: |
-        mkdir wheelhouse
-        $userDirs = Get-ChildItem -Directory
-        foreach ($userDir in $userDirs) {
-          $requirementsFile = "$userDir/requirements_r.txt"
-          $dependencyTreeFile = "$userDir/dependency_tree.csv"  # Store dependencies here
-    
+        mkdir r_packages
+        
+        foreach ($userDir in Get-ChildItem -Directory) {
+          $requirementsFile = "$userDir/requirements_rlocal.txt"
           if (Test-Path $requirementsFile) {
-            Write-Host "Processing $userDir's packages..."
-            
-            # Fix: Convert paths to forward slashes for R
-            $normalizedReqPath = $requirementsFile -replace '\\', '/'
-            $normalizedDepPath = $dependencyTreeFile -replace '\\', '/'
-    
-            # Step 6a: Install required packages temporarily (to extract dependencies)
-            Write-Host "Installing packages to resolve dependencies..."
-            Rscript -e "install.packages(scan('$normalizedReqPath', what='character'), repos='https://cloud.r-project.org/')"
-    
-            # Step 6b: Extract dependencies properly
-            Write-Host "Extracting dependency tree..."
-            Rscript -e "
-              pkgs <- scan('$normalizedReqPath', what='character');
-              deps <- unlist(tools::package_dependencies(pkgs, available.packages(), recursive=TRUE));
-              deps <- unique(na.omit(deps));  # Remove NA values
-              write.csv(data.frame(Package=deps), file='$normalizedDepPath', row.names=FALSE);
-            "
-    
-            # Step 6c: Download main packages
-            Write-Host "Downloading main packages..."
-            Rscript -e "
-              pkgs <- scan('$normalizedReqPath', what='character');
-              download.packages(pkgs, destdir='wheelhouse', repos='https://cloud.r-project.org/')
-            "
-    
-            # Step 6d: Download dependencies
-            Write-Host "Downloading dependencies..."
-            Rscript -e "
-              deps <- read.csv('$normalizedDepPath', stringsAsFactors=FALSE)$Package;
-              download.packages(deps, destdir='wheelhouse', repos='https://cloud.r-project.org/')
-            "
+            echo "Processing $userDir's R packages..."
+            Rscript -e "packages <- scan('$requirementsFile', what='', sep='\n'); install.packages(packages, repos='https://cran.rstudio.com/', lib='r_packages')"
           }
         }
 
-
-    # Step 7: Upload downloaded packages as artifacts
-    - name: Upload wheelhouse
+    # Step 10: Upload R packages artifact
+    - name: Upload R packages
       uses: actions/upload-artifact@v4
       with:
         name: r-packages
-        path: wheelhouse/
+        path: r_packages/
