@@ -59,7 +59,7 @@ jobs:
       run: |
         Rscript -e "install.packages(c('remotes'), repos='https://cran.rstudio.com/')"
 
-    # Step 9: Download R packages dynamically as tar.gz files
+    # Step 9: Download R packages dynamically with dependencies
     - name: Download R packages dynamically
       run: |
         mkdir r_packages
@@ -68,7 +68,7 @@ jobs:
           $requirementsFile = "$($userDir.FullName)/requirements_rlocal.txt" -replace '\\', '/'
           if (Test-Path $requirementsFile) {
             echo "Processing $($userDir.FullName)'s R packages..."
-            Rscript -e "packages <- scan('$requirementsFile', what='', sep=''); download.packages(packages, destdir='r_packages', type='source')"
+            Rscript -e "packages <- scan('$requirementsFile', what='', sep=''); deps <- tools::package_dependencies(packages, available.packages(), which=c('Depends', 'Imports', 'LinkingTo'), recursive=TRUE); all_packages <- unique(c(packages, unlist(deps))); download.packages(all_packages, destdir='r_packages', type='source')"
           }
         }
 
